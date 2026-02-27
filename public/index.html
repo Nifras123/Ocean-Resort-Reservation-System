@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ocean View Resort - Reservation System</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <div id="app">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-title">Ocean View Resort</div>
+        <div class="brand-subtitle">Reservation System</div>
+      </div>
+
+      <nav class="nav">
+        <button class="nav-item" data-target="dashboard">Dashboard</button>
+        <button class="nav-item" data-target="addReservation">Add Reservation</button>
+        <button class="nav-item" data-target="viewReservation">Display Reservation</button>
+        <button class="nav-item" data-target="bill">Calculate & Print Bill</button>
+        <button class="nav-item" data-target="help">Help</button>
+        <button class="nav-item danger" id="logoutBtn">Logout</button>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="small">Backend: Java (no frameworks)</div>
+        <div class="small">Frontend: HTML/CSS/JS (no frameworks)</div>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div class="topbar-left">
+          <div class="page-title" id="pageTitle">Dashboard</div>
+          <div class="page-subtitle" id="pageSubtitle">Welcome</div>
+        </div>
+        <div class="topbar-right">
+          <div class="chip" id="authChip">Not logged in</div>
+        </div>
+      </header>
+
+      <section class="content">
+        <div id="toast" class="toast" aria-live="polite"></div>
+
+        <section class="panel" id="panel-dashboard">
+          <h2>Overview</h2>
+          <div class="grid">
+            <div class="card">
+              <div class="card-title">Quick actions</div>
+              <div class="card-body">
+                Use the side menu to add reservations, search by reservation number, or print bills.
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-title">Room rates (per night)</div>
+              <div class="card-body" id="rates"></div>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel" id="panel-addReservation" hidden>
+          <h2>Add New Reservation</h2>
+          <form id="addForm" class="form">
+            <div class="form-row">
+              <label>Reservation Number</label>
+              <input name="reservationNumber" placeholder="e.g., R-1001" required />
+            </div>
+            <div class="form-row">
+              <label>Guest Name</label>
+              <input name="guestName" placeholder="Full name" required />
+            </div>
+            <div class="form-row">
+              <label>Address</label>
+              <input name="address" placeholder="Address" required />
+            </div>
+            <div class="form-row">
+              <label>Contact Number</label>
+              <input name="contactNumber" placeholder="Phone number" required />
+            </div>
+            <div class="form-row">
+              <label>Room Type</label>
+              <select name="roomType" required>
+                <option value="STANDARD">Standard</option>
+                <option value="DELUXE">Deluxe</option>
+                <option value="SUITE">Suite</option>
+              </select>
+            </div>
+            <div class="form-row">
+              <label>Check-in Date</label>
+              <input name="checkIn" type="date" required />
+            </div>
+            <div class="form-row">
+              <label>Check-out Date</label>
+              <input name="checkOut" type="date" required />
+            </div>
+
+            <div class="form-actions">
+              <button type="submit" class="primary">Save Reservation</button>
+              <button type="reset">Clear</button>
+            </div>
+          </form>
+        </section>
+
+        <section class="panel" id="panel-viewReservation" hidden>
+          <h2>Display Reservation Details</h2>
+          <div class="form inline">
+            <input id="searchReservationNumber" placeholder="Enter reservation number" />
+            <button id="searchReservationBtn" class="primary">Search</button>
+          </div>
+          <pre class="output" id="reservationOutput"></pre>
+        </section>
+
+        <section class="panel" id="panel-bill" hidden>
+          <h2>Calculate and Print Bill</h2>
+          <div class="form inline">
+            <input id="billReservationNumber" placeholder="Enter reservation number" />
+            <button id="billBtn" class="primary">Calculate</button>
+          </div>
+          <div class="bill" id="billOutput"></div>
+        </section>
+
+        <section class="panel" id="panel-help" hidden>
+          <h2>Help</h2>
+          <div class="help" id="helpContent"></div>
+        </section>
+      </section>
+    </main>
+  </div>
+
+  <div class="modal" id="loginModal" role="dialog" aria-modal="true">
+    <div class="modal-card">
+      <h2>Login</h2>
+      <p class="muted">Enter your username and password to access the system.</p>
+      <form id="loginForm" class="form">
+        <div class="form-row">
+          <label>Username</label>
+          <input name="username" autocomplete="username" required />
+        </div>
+        <div class="form-row">
+          <label>Password</label>
+          <input name="password" type="password" autocomplete="current-password" required />
+        </div>
+        <div class="form-actions">
+          <button type="submit" class="primary">Login</button>
+        </div>
+        <div class="muted small">
+          Default user: <b>admin</b> / <b>admin</b>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="/app.js"></script>
+</body>
+</html>
