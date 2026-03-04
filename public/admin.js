@@ -53,6 +53,7 @@ function setPage(target) {
     dashboard: { title: "Dashboard", subtitle: "Welcome" },
     addReservation: { title: "Add Reservation", subtitle: "Register a new guest" },
     viewAll: { title: "View All Reservations", subtitle: "All bookings" },
+    users: { title: "Manage Users", subtitle: "Create, update, and delete accounts" },
     updateReservation: { title: "Update Reservation", subtitle: "Update any booking" },
     deleteReservation: { title: "Delete Reservation", subtitle: "Delete any booking" },
     bill: { title: "Bill", subtitle: "Calculate total cost" },
@@ -67,6 +68,7 @@ function setPage(target) {
     dashboard: "#panel-dashboard",
     addReservation: "#panel-addReservation",
     viewAll: "#panel-viewAll",
+    users: "#panel-users",
     updateReservation: "#panel-updateReservation",
     deleteReservation: "#panel-deleteReservation",
     bill: "#panel-bill",
@@ -133,6 +135,9 @@ function bindNav() {
       }
       if (btn.dataset.target === "viewAll") {
         try { await refreshAllReservations(); } catch (e) { toast(e.message, "error"); }
+      }
+      if (btn.dataset.target === "users") {
+        try { await refreshUsers(); } catch (e) { toast(e.message, "error"); }
       }
     });
   });
@@ -209,6 +214,69 @@ function bindAddReservation() {
 async function refreshAllReservations() {
   const data = await API.json("/api/reservations", { method: "GET" });
   $("#allReservationsOutput").textContent = JSON.stringify(data.reservations, null, 2);
+}
+
+async function refreshUsers() {
+  const data = await API.json("/api/users", { method: "GET" });
+  $("#usersOutput").textContent = JSON.stringify(data.users, null, 2);
+}
+
+function bindUsers() {
+  const refreshBtn = $("#refreshUsersBtn");
+  if (refreshBtn) {
+    refreshBtn.addEventListener("click", async () => {
+      try {
+        await refreshUsers();
+        toast("Loaded", "success");
+      } catch (e) {
+        toast(e.message, "error");
+      }
+    });
+  }
+
+  const userForm = $("#userForm");
+  if (userForm) {
+    userForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const fd = new FormData(e.target);
+      const payload = {
+        username: String(fd.get("username") || "").trim(),
+        password: String(fd.get("password") || "").trim(),
+        role: String(fd.get("role") || "CUSTOMER").trim().toUpperCase(),
+      };
+
+      try {
+        const data = await API.json("/api/users", {
+          method: "POST",
+          body: JSON.stringify(payload),
+        });
+        toast(data.message || "User saved", "success");
+        await refreshUsers();
+      } catch (err) {
+        toast(err.message, "error");
+      }
+    });
+  }
+
+  const deleteBtn = $("#deleteUserBtn");
+  if (deleteBtn) {
+    deleteBtn.addEventListener("click", async () => {
+      const u = $("#deleteUsername").value.trim();
+      if (!u) {
+        toast("Enter a username", "error");
+        return;
+      }
+
+      try {
+        const data = await API.json(`/api/users/${encodeURIComponent(u)}`, { method: "DELETE" });
+        toast(data.message || "User deleted", "success");
+        $("#deleteUsername").value = "";
+        await refreshUsers();
+      } catch (err) {
+        toast(err.message, "error");
+      }
+    });
+  }
 }
 
 function bindViewAll() {
@@ -335,6 +403,7 @@ async function init() {
   bindLogout();
   bindAddReservation();
   bindViewAll();
+  bindUsers();
   bindUpdate();
   bindDelete();
   bindBill();

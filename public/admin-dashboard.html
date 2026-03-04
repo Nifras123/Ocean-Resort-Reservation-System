@@ -18,6 +18,7 @@
       <button class="nav-item" data-target="dashboard">Dashboard</button>
       <button class="nav-item" data-target="addReservation">Add Reservation</button>
       <button class="nav-item" data-target="viewAll">View All Reservations</button>
+      <button class="nav-item" data-target="users">Manage Users</button>
       <button class="nav-item" data-target="updateReservation">Update Reservation</button>
       <button class="nav-item danger" data-target="deleteReservation">Delete Reservation</button>
       <button class="nav-item" data-target="bill">Calculate &amp; Print Bill</button>
@@ -107,6 +108,54 @@
           <button id="refreshAllBtn" class="primary">Refresh</button>
         </div>
         <pre class="output" id="allReservationsOutput"></pre>
+      </section>
+
+      <section class="panel" id="panel-users" hidden>
+        <h2>Manage Users</h2>
+        <div class="grid">
+          <div class="card">
+            <div class="card-title">Create / Update User</div>
+            <div class="card-body">
+              <form id="userForm" class="form">
+                <div class="form-row">
+                  <label>Username</label>
+                  <input name="username" placeholder="e.g., john" required />
+                </div>
+                <div class="form-row">
+                  <label>Password</label>
+                  <input name="password" type="password" placeholder="Password" required />
+                </div>
+                <div class="form-row">
+                  <label>Role</label>
+                  <select name="role" required>
+                    <option value="CUSTOMER">CUSTOMER</option>
+                    <option value="ADMIN">ADMIN</option>
+                  </select>
+                </div>
+                <div class="form-actions">
+                  <button type="submit" class="primary">Save User</button>
+                  <button type="reset">Clear</button>
+                </div>
+              </form>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-title">Delete User</div>
+            <div class="card-body">
+              <div class="form inline">
+                <input id="deleteUsername" placeholder="Username" />
+                <button id="deleteUserBtn" class="primary">Delete</button>
+              </div>
+              <div class="muted small" style="margin-top:10px;">Deleting a user will invalidate their active sessions.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="form inline" style="margin-top:14px;">
+          <button id="refreshUsersBtn" class="primary">Refresh Users</button>
+        </div>
+        <pre class="output" id="usersOutput"></pre>
       </section>
 
       <section class="panel" id="panel-updateReservation" hidden>

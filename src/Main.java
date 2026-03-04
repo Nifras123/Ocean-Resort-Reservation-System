@@ -144,6 +144,87 @@ public class Main {
             HttpUtil.sendJson(ex, 200, "{\"ok\":true,\"text\":" + JsonUtil.jsonString(help) + "}");
         });
 
+        server.createContext("/api/users", ex -> {
+            if (HttpUtil.handleOptions(ex)) return;
+            try {
+                String token = HttpUtil.bearerToken(ex);
+                auth.requireAdmin(token);
+
+                if ("GET".equalsIgnoreCase(ex.getRequestMethod())) {
+                    java.util.List<AuthService.UserRecord> list = auth.listUsers();
+                    StringBuilder arr = new StringBuilder();
+                    arr.append("[");
+                    boolean first = true;
+                    for (AuthService.UserRecord u : list) {
+                        if (!first) arr.append(",");
+                        first = false;
+                        Map<String, String> fields = new LinkedHashMap<>();
+                        fields.put("username", JsonUtil.jsonString(u.username));
+                        fields.put("role", JsonUtil.jsonString(u.role == null ? AuthService.Role.CUSTOMER.name() : u.role.name()));
+                        arr.append(JsonUtil.jsonObjectRaw(fields));
+                    }
+                    arr.append("]");
+                    HttpUtil.sendJson(ex, 200, "{\"ok\":true,\"users\":" + arr + "}");
+                    return;
+                }
+
+                if (!"POST".equalsIgnoreCase(ex.getRequestMethod())) {
+                    HttpUtil.sendJson(ex, 405, "{\"ok\":false,\"message\":\"Method not allowed\"}");
+                    return;
+                }
+
+                String body = HttpUtil.readBody(ex);
+                Map<String, String> obj = JsonUtil.parseFlatObject(body);
+                String username = obj.getOrDefault("username", "").trim();
+                String password = obj.getOrDefault("password", "").trim();
+                String roleStr = obj.getOrDefault("role", "CUSTOMER").trim().toUpperCase();
+                AuthService.Role role;
+                try {
+                    role = AuthService.Role.valueOf(roleStr);
+                } catch (IllegalArgumentException ignored) {
+                    role = AuthService.Role.CUSTOMER;
+                }
+
+                auth.upsertUser(username, password, role);
+                HttpUtil.sendJson(ex, 200, "{\"ok\":true,\"message\":\"User saved\"}");
+            } catch (IllegalArgumentException iae) {
+                int status = "Forbidden".equalsIgnoreCase(iae.getMessage()) ? 403 : 400;
+                if (iae.getMessage() != null && iae.getMessage().toLowerCase().contains("not logged")) status = 401;
+                HttpUtil.sendJson(ex, status, "{\"ok\":false,\"message\":" + JsonUtil.jsonString(iae.getMessage()) + "}");
+            } catch (Exception e) {
+                HttpUtil.sendJson(ex, 500, "{\"ok\":false,\"message\":\"Server error\"}");
+            }
+        });
+
+        server.createContext("/api/users/", ex -> {
+            if (HttpUtil.handleOptions(ex)) return;
+            if (!"DELETE".equalsIgnoreCase(ex.getRequestMethod())) {
+                HttpUtil.sendJson(ex, 405, "{\"ok\":false,\"message\":\"Method not allowed\"}");
+                return;
+            }
+            try {
+                String token = HttpUtil.bearerToken(ex);
+                auth.requireAdmin(token);
+
+                String path = ex.getRequestURI().getPath();
+                String username = path.substring("/api/users/".length());
+                username = URLDecoder.decode(username, StandardCharsets.UTF_8);
+                if (username == null || username.trim().isEmpty()) {
+                    HttpUtil.sendJson(ex, 400, "{\"ok\":false,\"message\":\"Username is required\"}");
+                    return;
+                }
+
+                auth.deleteUser(username.trim());
+                HttpUtil.sendJson(ex, 200, "{\"ok\":true,\"message\":\"User deleted\"}");
+            } catch (IllegalArgumentException iae) {
+                int status = "Forbidden".equalsIgnoreCase(iae.getMessage()) ? 403 : 400;
+                if (iae.getMessage() != null && iae.getMessage().toLowerCase().contains("not logged")) status = 401;
+                HttpUtil.sendJson(ex, status, "{\"ok\":false,\"message\":" + JsonUtil.jsonString(iae.getMessage()) + "}");
+            } catch (Exception e) {
+                HttpUtil.sendJson(ex, 500, "{\"ok\":false,\"message\":\"Server error\"}");
+            }
+        });
+
         server.createContext("/api/reservations", ex -> {
             if (HttpUtil.handleOptions(ex)) return;
             try {
