@@ -1,2 +1,2 @@
 admin:admin
-customer:customer:CUSTOMER
+Nippu:Nippu:CUSTOMER

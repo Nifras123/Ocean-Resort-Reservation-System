@@ -52,7 +52,7 @@ public class AuthService {
                 if (parts.length < 2) continue;
                 String u = parts[0].trim();
                 if ("admin".equalsIgnoreCase(u)) hasAdmin = true;
-                if ("customer".equalsIgnoreCase(u)) hasCustomer = true;
+                if ("nippu".equalsIgnoreCase(u)) hasCustomer = true;
             }
         }
 
@@ -68,7 +68,7 @@ public class AuthService {
                 w.newLine();
             }
             if (!hasCustomer) {
-                w.write("customer:customer:CUSTOMER");
+                w.write("Nippu:Nippu:CUSTOMER");
                 w.newLine();
             }
         }
