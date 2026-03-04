@@ -38,13 +38,37 @@ public class AuthService {
         if (!Files.exists(usersFile)) {
             Files.createFile(usersFile);
         }
-        if (Files.size(usersFile) > 0) return;
 
-        try (BufferedWriter w = Files.newBufferedWriter(usersFile, StandardCharsets.UTF_8)) {
-            w.write("admin:admin:ADMIN");
-            w.newLine();
-            w.write("customer:customer:CUSTOMER");
-            w.newLine();
+        boolean hasAdmin = false;
+        boolean hasCustomer = false;
+        try (BufferedReader r = Files.newBufferedReader(usersFile, StandardCharsets.UTF_8)) {
+            String line;
+            while ((line = r.readLine()) != null) {
+                line = line.trim();
+                if (line.isEmpty()) continue;
+                String[] parts = line.split(":", 3);
+                if (parts.length < 2) continue;
+                String u = parts[0].trim();
+                if ("admin".equalsIgnoreCase(u)) hasAdmin = true;
+                if ("customer".equalsIgnoreCase(u)) hasCustomer = true;
+            }
+        }
+
+        if (hasAdmin && hasCustomer) return;
+
+        try (BufferedWriter w = Files.newBufferedWriter(
+                usersFile,
+                StandardCharsets.UTF_8,
+                java.nio.file.StandardOpenOption.APPEND
+        )) {
+            if (!hasAdmin) {
+                w.write("admin:admin:ADMIN");
+                w.newLine();
+            }
+            if (!hasCustomer) {
+                w.write("customer:customer:CUSTOMER");
+                w.newLine();
+            }
         }
     }
 
