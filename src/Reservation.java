@@ -2,6 +2,7 @@ import java.time.LocalDate;
 
 public class Reservation {
     public final String reservationNumber;
+    public final String ownerUsername;
     public final String guestName;
     public final String address;
     public final String contactNumber;
@@ -11,6 +12,7 @@ public class Reservation {
 
     public Reservation(
             String reservationNumber,
+            String ownerUsername,
             String guestName,
             String address,
             String contactNumber,
@@ -19,6 +21,7 @@ public class Reservation {
             LocalDate checkOut
     ) {
         this.reservationNumber = reservationNumber;
+        this.ownerUsername = ownerUsername;
         this.guestName = guestName;
         this.address = address;
         this.contactNumber = contactNumber;

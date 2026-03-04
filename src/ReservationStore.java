@@ -47,6 +47,39 @@ public class ReservationStore {
         return null;
     }
 
+    public synchronized java.util.List<Reservation> listAll() throws IOException {
+        ensureExists();
+        java.util.List<Reservation> list = new java.util.ArrayList<>();
+        try (BufferedReader r = Files.newBufferedReader(filePath, StandardCharsets.UTF_8)) {
+            String line;
+            while ((line = r.readLine()) != null) {
+                if (line.trim().isEmpty()) continue;
+                Reservation rr = deserialize(line);
+                if (rr != null) list.add(rr);
+            }
+        }
+        return list;
+    }
+
+    public synchronized void update(Reservation r) throws IOException {
+        ensureExists();
+        Map<String, Reservation> all = loadAll();
+        if (!all.containsKey(r.reservationNumber)) {
+            throw new IllegalArgumentException("Reservation not found");
+        }
+        all.put(r.reservationNumber, r);
+        writeAll(all);
+    }
+
+    public synchronized void delete(String reservationNumber) throws IOException {
+        ensureExists();
+        Map<String, Reservation> all = loadAll();
+        if (all.remove(reservationNumber) == null) {
+            throw new IllegalArgumentException("Reservation not found");
+        }
+        writeAll(all);
+    }
+
     private Map<String, Reservation> loadAll() throws IOException {
         Map<String, Reservation> map = new HashMap<>();
         try (BufferedReader r = Files.newBufferedReader(filePath, StandardCharsets.UTF_8)) {
@@ -58,6 +91,15 @@ public class ReservationStore {
             }
         }
         return map;
+    }
+
+    private void writeAll(Map<String, Reservation> all) throws IOException {
+        try (BufferedWriter w = Files.newBufferedWriter(filePath, StandardCharsets.UTF_8)) {
+            for (Reservation r : all.values()) {
+                w.write(serialize(r));
+                w.newLine();
+            }
+        }
     }
 
     private static String esc(String s) {
@@ -89,6 +131,7 @@ public class ReservationStore {
 
     public static String serialize(Reservation r) {
         return esc(r.reservationNumber) + "|" +
+                esc(r.ownerUsername) + "|" +
                 esc(r.guestName) + "|" +
                 esc(r.address) + "|" +
                 esc(r.contactNumber) + "|" +
@@ -100,6 +143,19 @@ public class ReservationStore {
     public static Reservation deserialize(String line) {
         String[] parts = splitEscaped(line);
         if (parts.length < 7) return null;
+        if (parts.length >= 8) {
+            String reservationNumber = unesc(parts[0]);
+            String ownerUsername = unesc(parts[1]);
+            String guestName = unesc(parts[2]);
+            String address = unesc(parts[3]);
+            String contactNumber = unesc(parts[4]);
+            String roomType = unesc(parts[5]);
+            LocalDate checkIn = LocalDate.parse(unesc(parts[6]));
+            LocalDate checkOut = LocalDate.parse(unesc(parts[7]));
+            return new Reservation(reservationNumber, ownerUsername, guestName, address, contactNumber, roomType, checkIn, checkOut);
+        }
+
+        // Backward compatibility: old format without ownerUsername.
         String reservationNumber = unesc(parts[0]);
         String guestName = unesc(parts[1]);
         String address = unesc(parts[2]);
@@ -107,7 +163,7 @@ public class ReservationStore {
         String roomType = unesc(parts[4]);
         LocalDate checkIn = LocalDate.parse(unesc(parts[5]));
         LocalDate checkOut = LocalDate.parse(unesc(parts[6]));
-        return new Reservation(reservationNumber, guestName, address, contactNumber, roomType, checkIn, checkOut);
+        return new Reservation(reservationNumber, "", guestName, address, contactNumber, roomType, checkIn, checkOut);
     }
 
     private static String[] splitEscaped(String s) {

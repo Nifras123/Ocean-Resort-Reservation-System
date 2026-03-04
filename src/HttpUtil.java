@@ -44,7 +44,7 @@ public class HttpUtil {
         Headers h = ex.getResponseHeaders();
         h.set("Access-Control-Allow-Origin", "*");
         h.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
-        h.set("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+        h.set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
     }
 
     public static String bearerToken(HttpExchange ex) {

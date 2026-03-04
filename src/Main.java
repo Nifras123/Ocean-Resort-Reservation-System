@@ -68,7 +68,8 @@ public class Main {
                     return;
                 }
                 String token = auth.login(username, password);
-                HttpUtil.sendJson(ex, 200, "{\"ok\":true,\"token\":" + JsonUtil.jsonString(token) + "}");
+                AuthService.Session s = auth.requireSession(token);
+                HttpUtil.sendJson(ex, 200, "{\"ok\":true,\"token\":" + JsonUtil.jsonString(token) + ",\"username\":" + JsonUtil.jsonString(s.username) + ",\"role\":" + JsonUtil.jsonString(s.role.name()) + "}");
             } catch (IllegalArgumentException iae) {
                 HttpUtil.sendJson(ex, 401, "{\"ok\":false,\"message\":" + JsonUtil.jsonString(iae.getMessage()) + "}");
             } catch (Exception e) {
@@ -95,8 +96,8 @@ public class Main {
             }
             try {
                 String token = HttpUtil.bearerToken(ex);
-                String username = auth.requireUser(token);
-                HttpUtil.sendJson(ex, 200, "{\"ok\":true,\"username\":" + JsonUtil.jsonString(username) + "}");
+                AuthService.Session s = auth.requireSession(token);
+                HttpUtil.sendJson(ex, 200, "{\"ok\":true,\"username\":" + JsonUtil.jsonString(s.username) + ",\"role\":" + JsonUtil.jsonString(s.role.name()) + "}");
             } catch (IllegalArgumentException iae) {
                 HttpUtil.sendJson(ex, 401, "{\"ok\":false,\"message\":" + JsonUtil.jsonString(iae.getMessage()) + "}");
             }
@@ -145,14 +146,43 @@ public class Main {
 
         server.createContext("/api/reservations", ex -> {
             if (HttpUtil.handleOptions(ex)) return;
-            if (!"POST".equalsIgnoreCase(ex.getRequestMethod())) {
-                HttpUtil.sendJson(ex, 405, "{\"ok\":false,\"message\":\"Method not allowed\"}");
-                return;
-            }
-
             try {
                 String token = HttpUtil.bearerToken(ex);
-                auth.requireUser(token);
+                AuthService.Session s = auth.requireSession(token);
+
+                if ("GET".equalsIgnoreCase(ex.getRequestMethod())) {
+                    java.util.List<Reservation> list = store.listAll();
+                    StringBuilder arr = new StringBuilder();
+                    arr.append("[");
+                    boolean first = true;
+                    for (Reservation r : list) {
+                        if (s.role != AuthService.Role.ADMIN && (r.ownerUsername == null || !r.ownerUsername.equals(s.username))) {
+                            continue;
+                        }
+                        if (!first) arr.append(",");
+                        first = false;
+                        Map<String, String> fields = new LinkedHashMap<>();
+                        fields.put("reservationNumber", JsonUtil.jsonString(r.reservationNumber));
+                        fields.put("guestName", JsonUtil.jsonString(r.guestName));
+                        fields.put("address", JsonUtil.jsonString(r.address));
+                        fields.put("contactNumber", JsonUtil.jsonString(r.contactNumber));
+                        fields.put("roomType", JsonUtil.jsonString(r.roomType));
+                        fields.put("checkIn", JsonUtil.jsonString(r.checkIn.toString()));
+                        fields.put("checkOut", JsonUtil.jsonString(r.checkOut.toString()));
+                        if (s.role == AuthService.Role.ADMIN) {
+                            fields.put("ownerUsername", JsonUtil.jsonString(r.ownerUsername));
+                        }
+                        arr.append(JsonUtil.jsonObjectRaw(fields));
+                    }
+                    arr.append("]");
+                    HttpUtil.sendJson(ex, 200, "{\"ok\":true,\"reservations\":" + arr + "}");
+                    return;
+                }
+
+                if (!"POST".equalsIgnoreCase(ex.getRequestMethod())) {
+                    HttpUtil.sendJson(ex, 405, "{\"ok\":false,\"message\":\"Method not allowed\"}");
+                    return;
+                }
 
                 String body = HttpUtil.readBody(ex);
                 Map<String, String> obj = JsonUtil.parseFlatObject(body);
@@ -180,7 +210,7 @@ public class Main {
 
                 RoomRates.rateForRoomType(roomType);
 
-                Reservation r = new Reservation(reservationNumber, guestName, address, contactNumber, roomType, checkIn, checkOut);
+                Reservation r = new Reservation(reservationNumber, s.username, guestName, address, contactNumber, roomType, checkIn, checkOut);
                 store.add(r);
                 HttpUtil.sendJson(ex, 200, "{\"ok\":true,\"message\":\"Reservation saved successfully\"}");
             } catch (IllegalArgumentException iae) {
@@ -193,14 +223,14 @@ public class Main {
 
         server.createContext("/api/reservations/", ex -> {
             if (HttpUtil.handleOptions(ex)) return;
-            if (!"GET".equalsIgnoreCase(ex.getRequestMethod())) {
-                HttpUtil.sendJson(ex, 405, "{\"ok\":false,\"message\":\"Method not allowed\"}");
-                return;
-            }
-
             try {
                 String token = HttpUtil.bearerToken(ex);
-                auth.requireUser(token);
+                AuthService.Session s = auth.requireSession(token);
+
+                if (!"GET".equalsIgnoreCase(ex.getRequestMethod()) && !"PUT".equalsIgnoreCase(ex.getRequestMethod()) && !"DELETE".equalsIgnoreCase(ex.getRequestMethod())) {
+                    HttpUtil.sendJson(ex, 405, "{\"ok\":false,\"message\":\"Method not allowed\"}");
+                    return;
+                }
 
                 String path = ex.getRequestURI().getPath();
                 String id = path.substring("/api/reservations/".length());
@@ -216,8 +246,55 @@ public class Main {
                     return;
                 }
 
+                boolean isOwner = r.ownerUsername != null && r.ownerUsername.equals(s.username);
+                if (s.role != AuthService.Role.ADMIN && !isOwner) {
+                    HttpUtil.sendJson(ex, 403, "{\"ok\":false,\"message\":\"Forbidden\"}");
+                    return;
+                }
+
+                if ("DELETE".equalsIgnoreCase(ex.getRequestMethod())) {
+                    if (s.role != AuthService.Role.ADMIN) {
+                        HttpUtil.sendJson(ex, 403, "{\"ok\":false,\"message\":\"Forbidden\"}");
+                        return;
+                    }
+                    store.delete(id);
+                    HttpUtil.sendJson(ex, 200, "{\"ok\":true,\"message\":\"Reservation deleted\"}");
+                    return;
+                }
+
+                if ("PUT".equalsIgnoreCase(ex.getRequestMethod())) {
+                    String body = HttpUtil.readBody(ex);
+                    Map<String, String> obj = JsonUtil.parseFlatObject(body);
+
+                    String guestName = obj.getOrDefault("guestName", r.guestName).trim();
+                    String address = obj.getOrDefault("address", r.address).trim();
+                    String contactNumber = obj.getOrDefault("contactNumber", r.contactNumber).trim();
+                    String roomType = obj.getOrDefault("roomType", r.roomType).trim().toUpperCase();
+                    String checkInStr = obj.getOrDefault("checkIn", r.checkIn.toString()).trim();
+                    String checkOutStr = obj.getOrDefault("checkOut", r.checkOut.toString()).trim();
+
+                    if (guestName.isEmpty()) throw new IllegalArgumentException("Guest name is required");
+                    if (address.isEmpty()) throw new IllegalArgumentException("Address is required");
+                    if (contactNumber.isEmpty()) throw new IllegalArgumentException("Contact number is required");
+                    if (roomType.isEmpty()) throw new IllegalArgumentException("Room type is required");
+                    if (checkInStr.isEmpty() || checkOutStr.isEmpty()) throw new IllegalArgumentException("Check-in and check-out dates are required");
+
+                    LocalDate checkIn = LocalDate.parse(checkInStr);
+                    LocalDate checkOut = LocalDate.parse(checkOutStr);
+                    if (!checkOut.isAfter(checkIn)) {
+                        throw new IllegalArgumentException("Check-out date must be after check-in date");
+                    }
+                    RoomRates.rateForRoomType(roomType);
+
+                    Reservation updated = new Reservation(r.reservationNumber, r.ownerUsername, guestName, address, contactNumber, roomType, checkIn, checkOut);
+                    store.update(updated);
+                    HttpUtil.sendJson(ex, 200, "{\"ok\":true,\"message\":\"Reservation updated\"}");
+                    return;
+                }
+
                 Map<String, String> fields = new LinkedHashMap<>();
                 fields.put("reservationNumber", JsonUtil.jsonString(r.reservationNumber));
+                if (s.role == AuthService.Role.ADMIN) fields.put("ownerUsername", JsonUtil.jsonString(r.ownerUsername));
                 fields.put("guestName", JsonUtil.jsonString(r.guestName));
                 fields.put("address", JsonUtil.jsonString(r.address));
                 fields.put("contactNumber", JsonUtil.jsonString(r.contactNumber));
@@ -243,7 +320,7 @@ public class Main {
 
             try {
                 String token = HttpUtil.bearerToken(ex);
-                auth.requireUser(token);
+                AuthService.Session s = auth.requireSession(token);
 
                 String path = ex.getRequestURI().getPath();
                 String id = path.substring("/api/bill/".length());
@@ -256,6 +333,12 @@ public class Main {
                 Reservation r = store.find(id);
                 if (r == null) {
                     HttpUtil.sendJson(ex, 404, "{\"ok\":false,\"message\":\"Reservation not found\"}");
+                    return;
+                }
+
+                boolean isOwner = r.ownerUsername != null && r.ownerUsername.equals(s.username);
+                if (s.role != AuthService.Role.ADMIN && !isOwner) {
+                    HttpUtil.sendJson(ex, 403, "{\"ok\":false,\"message\":\"Forbidden\"}");
                     return;
                 }
 
