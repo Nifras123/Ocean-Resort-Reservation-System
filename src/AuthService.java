@@ -19,11 +19,16 @@ public class AuthService {
     }
 
     public synchronized void ensureUsersFile() throws IOException {
-        if (Files.exists(usersFile)) return;
         if (usersFile.getParent() != null) Files.createDirectories(usersFile.getParent());
-        Files.createFile(usersFile);
+        if (!Files.exists(usersFile)) {
+            Files.createFile(usersFile);
+        }
+        if (Files.size(usersFile) > 0) return;
+
         try (BufferedWriter w = Files.newBufferedWriter(usersFile, StandardCharsets.UTF_8)) {
             w.write("admin:admin");
+            w.newLine();
+            w.write("customer:customer");
             w.newLine();
         }
     }
