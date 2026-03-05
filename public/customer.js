@@ -48,6 +48,79 @@ function escapeHtml(s) {
     .replaceAll("'", "&#039;");
 }
 
+function billHtml(b) {
+  const now = new Date();
+  const lines = [
+    `<div style="font-size:18px;font-weight:700;margin-bottom:8px;">Ocean View Resort - Bill</div>`,
+    `<div style="font-size:12px;color:#444;margin-bottom:12px;">Generated: ${escapeHtml(now.toLocaleString())}</div>`,
+    `<div><b>Reservation</b>: ${escapeHtml(b.reservationNumber)}</div>`,
+    `<div><b>Guest</b>: ${escapeHtml(b.guestName)}</div>`,
+    `<div><b>Room Type</b>: ${escapeHtml(b.roomType)}</div>`,
+    `<div><b>Check-in</b>: ${escapeHtml(b.checkIn)}</div>`,
+    `<div><b>Check-out</b>: ${escapeHtml(b.checkOut)}</div>`,
+    `<hr style="border:0;border-top:1px solid #ccc;margin:12px 0;">`,
+    `<div><b>Nights</b>: ${b.nights}</div>`,
+    `<div><b>Rate per night</b>: LKR ${b.ratePerNight}</div>`,
+    `<div style="margin-top:8px;font-size:16px;"><b>Total</b>: LKR ${b.total}</div>`,
+  ];
+  return lines.join("");
+}
+
+async function printBillForReservation(reservationNumber) {
+  const data = await API.json(`/api/bill/${encodeURIComponent(reservationNumber)}`);
+  const b = data.bill;
+
+  const html = `<!doctype html>
+  <html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bill - ${escapeHtml(b.reservationNumber)}</title>
+    <style>
+      body { font-family: Arial, sans-serif; padding: 24px; color: #111; }
+      .wrap { max-width: 640px; margin: 0 auto; }
+      @media print { button { display: none; } body { padding: 0; } .wrap { max-width: none; } }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      ${billHtml(b)}
+      <div style="margin-top:18px;">
+        <button onclick="window.print()">Print / Save as PDF</button>
+      </div>
+    </div>
+  </body>
+  </html>`;
+
+  const w = window.open("", "_blank");
+  if (!w) throw new Error("Popup blocked");
+  w.document.open();
+  w.document.write(html);
+  w.document.close();
+
+  w.focus();
+  w.onload = () => {
+    try { w.print(); } catch { }
+  };
+}
+
+function bindBillPrint() {
+  const btn = $("#billPrintBtn");
+  if (!btn) return;
+  btn.addEventListener("click", async () => {
+    const id = $("#billReservationNumber").value.trim();
+    if (!id) {
+      toast("Enter a reservation number", "error");
+      return;
+    }
+    try {
+      await printBillForReservation(id);
+    } catch (e) {
+      toast(e.message || "Unable to print", "error");
+    }
+  });
+}
+
 function setPage(target) {
   const map = {
     dashboard: { title: "Dashboard", subtitle: "Welcome" },
@@ -197,6 +270,11 @@ function bindAddReservation() {
       e.target.reset();
       setPage("viewReservation");
       $("#searchReservationNumber").value = payload.reservationNumber;
+
+      try {
+        await printBillForReservation(payload.reservationNumber);
+      } catch (e) {
+      }
     } catch (err) {
       toast(err.message, "error");
     }
@@ -318,6 +396,7 @@ async function init() {
   bindSearchReservation();
   bindUpdate();
   bindBill();
+  bindBillPrint();
 
   setPage("dashboard");
 
