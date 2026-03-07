@@ -278,11 +278,6 @@ function bindAddReservation() {
       });
       toast(data.message || "Reservation saved", "success");
       e.target.reset();
-
-      try {
-        await printBillForReservation(payload.reservationNumber);
-      } catch (e) {
-      }
     } catch (err) {
       toast(err.message, "error");
     }

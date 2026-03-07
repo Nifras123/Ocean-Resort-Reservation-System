@@ -270,11 +270,6 @@ function bindAddReservation() {
       e.target.reset();
       setPage("viewReservation");
       $("#searchReservationNumber").value = payload.reservationNumber;
-
-      try {
-        await printBillForReservation(payload.reservationNumber);
-      } catch (e) {
-      }
     } catch (err) {
       toast(err.message, "error");
     }
